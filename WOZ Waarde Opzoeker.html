@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WOZ Waarde Opzoeker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #F5F2ED; --card: #FFFDF9; --ink: #1A1714; --ink-muted: #6B6560;
+    --accent: #C8502A; --border: #E2DDD7; --blue: #1F4E79;
+    --green: #2D6A4F; --green-light: #E8F5EE; --shadow: 0 2px 12px rgba(26,23,20,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; }
+
+  header { background: var(--ink); padding: 20px 40px; display: flex; align-items: center; gap: 16px; }
+  .logo-mark { width: 36px; height: 36px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: 'DM Serif Display', serif; color: white; font-size: 18px; }
+  header h1 { font-family: 'DM Serif Display', serif; font-size: 22px; color: white; font-weight: 400; }
+  header span { font-size: 13px; color: rgba(255,255,255,0.45); margin-left: 4px; }
+
+  main { max-width: 960px; margin: 0 auto; padding: 48px 24px; }
+  .intro { margin-bottom: 36px; }
+  .intro h2 { font-family: 'DM Serif Display', serif; font-size: 36px; font-weight: 400; line-height: 1.2; margin-bottom: 10px; }
+  .intro h2 em { font-style: italic; color: var(--accent); }
+  .intro p { color: var(--ink-muted); font-size: 15px; line-height: 1.6; max-width: 520px; }
+
+  .search-section { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; box-shadow: var(--shadow); margin-bottom: 32px; }
+
+  .year-selector { margin-bottom: 20px; }
+  .year-selector > label { font-size: 12px; font-weight: 600; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.08em; display: block; margin-bottom: 10px; }
+  .year-checkboxes { display: flex; flex-wrap: wrap; gap: 8px; }
+  .year-pill { display: flex; align-items: center; gap: 6px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 99px; padding: 6px 16px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; user-select: none; }
+  .year-pill:hover { border-color: var(--accent); }
+  .year-pill.active { background: var(--accent); border-color: var(--accent); color: white; }
+  .year-pill input { display: none; }
+
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  .search-row { display: flex; gap: 10px; margin-bottom: 16px; }
+  .address-input-wrap { flex: 1; }
+  .address-input-wrap input { width: 100%; padding: 14px 18px; font-family: 'DM Sans', sans-serif; font-size: 15px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--ink); outline: none; transition: border-color 0.2s; }
+  .address-input-wrap input:focus { border-color: var(--accent); background: white; }
+  .address-input-wrap input::placeholder { color: #B0AAA4; }
+
+  .btn-search { padding: 14px 28px; background: var(--accent); color: white; border: none; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+  .btn-search:hover { background: #A83E1E; transform: translateY(-1px); }
+  .btn-search:disabled { background: #C4B9B4; cursor: not-allowed; transform: none; }
+
+  .bulk-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-muted); cursor: pointer; user-select: none; }
+  .bulk-toggle input[type=checkbox] { accent-color: var(--accent); }
+  .bulk-area { display: none; margin-top: 16px; }
+  .bulk-area.visible { display: block; }
+  .bulk-area label { font-size: 13px; color: var(--ink-muted); display: block; margin-bottom: 8px; }
+  .bulk-area textarea { width: 100%; height: 130px; padding: 12px 16px; font-family: 'DM Sans', sans-serif; font-size: 13px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--ink); resize: vertical; outline: none; line-height: 1.6; }
+  .bulk-area textarea:focus { border-color: var(--accent); background: white; }
+  .btn-bulk { margin-top: 10px; padding: 11px 22px; background: var(--ink); color: white; border: none; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+  .btn-bulk:hover { background: #333; }
+  .btn-bulk:disabled { background: #999; cursor: not-allowed; }
+
+  .progress-wrap { display: none; margin-top: 16px; }
+  .progress-wrap.visible { display: block; }
+  .progress-label { font-size: 13px; color: var(--ink-muted); margin-bottom: 6px; }
+  .progress-bar-bg { background: var(--border); border-radius: 99px; height: 6px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: var(--accent); border-radius: 99px; transition: width 0.3s ease; width: 0%; }
+
+  .error-msg { display: none; background: #FFF0EE; border: 1px solid #F5C6C1; border-radius: 10px; padding: 14px 18px; color: var(--accent); font-size: 14px; margin-top: 16px; }
+  .error-msg.visible { display: block; }
+
+  .single-result { display: none; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; box-shadow: var(--shadow); }
+  .single-result.visible { display: block; }
+  .single-result .addr-label { font-family: 'DM Serif Display', serif; font-size: 24px; margin-bottom: 4px; }
+  .single-result .postcode { color: var(--ink-muted); font-size: 14px; margin-bottom: 24px; }
+  .woz-grid { display: flex; flex-wrap: wrap; gap: 14px; }
+  .woz-card { flex: 1; min-width: 110px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 18px 16px; text-align: center; }
+  .woz-card .yr { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-muted); margin-bottom: 8px; }
+  .woz-card .val { font-family: 'DM Serif Display', serif; font-size: 22px; }
+  .woz-card .chg { font-size: 11px; margin-top: 6px; color: var(--ink-muted); min-height: 18px; }
+  .woz-card.hl { background: var(--blue); border-color: var(--blue); }
+  .woz-card.hl .yr { color: rgba(255,255,255,0.6); }
+  .woz-card.hl .val { color: white; }
+  .woz-card.hl .chg { color: rgba(255,255,255,0.65); }
+
+  .results-section { display: none; }
+  .results-section.visible { display: block; }
+  .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+  .results-header h3 { font-family: 'DM Serif Display', serif; font-size: 22px; font-weight: 400; }
+  .results-header h3 span { color: var(--accent); }
+  .export-btns { display: flex; gap: 8px; }
+  .btn-export { padding: 9px 16px; color: white; border: none; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s; }
+  .btn-export.csv { background: var(--green); }
+  .btn-export.csv:hover { background: #1E4D38; }
+  .btn-export.excel { background: var(--blue); }
+  .btn-export.excel:hover { background: #163a5e; }
+
+  .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: auto; box-shadow: var(--shadow); }
+  table { width: 100%; border-collapse: collapse; min-width: 400px; }
+  thead tr { background: var(--ink); color: white; }
+  thead th { padding: 14px 18px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; text-align: left; white-space: nowrap; }
+  thead th:not(:first-child) { text-align: right; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #FAFAF8; }
+  td { padding: 13px 18px; font-size: 14px; }
+  td:first-child { font-weight: 500; }
+  td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .up { display: inline-flex; align-items: center; gap: 3px; background: var(--green-light); color: var(--green); font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 99px; }
+  .dn { display: inline-flex; align-items: center; gap: 3px; background: #FDECEA; color: #C0392B; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 99px; }
+
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  footer { text-align: center; padding: 32px; color: var(--ink-muted); font-size: 12px; }
+  footer a { color: var(--accent); text-decoration: none; }
+
+  @media (max-width: 600px) {
+    header { padding: 16px 20px; }
+    main { padding: 28px 16px; }
+    .intro h2 { font-size: 26px; }
+    .search-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">W</div>
+  <h1>WOZ Opzoeker <span>via Kadaster API</span></h1>
+</header>
+
+<main>
+  <div class="intro">
+    <h2>Zoek <em>WOZ-waarden</em><br>snel en direct op</h2>
+    <p>Voer een adres in of plak een lijst van adressen. Kies de gewenste peildata en exporteer naar CSV of Excel.</p>
+  </div>
+
+  <div class="search-section">
+    <div class="year-selector">
+      <label>Selecteer jaren (peildatum 01-01)</label>
+      <div class="year-checkboxes" id="yearPills"></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="search-row">
+      <div class="address-input-wrap">
+        <input type="text" id="singleInput" placeholder="bijv. Parnassialaan 72, Lelystad" autocomplete="off" />
+      </div>
+      <button class="btn-search" id="btnSingle" onclick="searchSingle()">
+        <span id="btnSingleText">Opzoeken</span>
+        <div class="spinner" id="spinner" style="display:none"></div>
+      </button>
+    </div>
+
+    <label class="bulk-toggle">
+      <input type="checkbox" id="bulkToggle" onchange="toggleBulk()" />
+      Meerdere adressen tegelijk opzoeken
+    </label>
+
+    <div class="bulk-area" id="bulkArea">
+      <label style="margin-top:16px">Één adres per regel:</label>
+      <textarea id="bulkInput" placeholder="Parnassialaan 72, Lelystad&#10;Achillesstraat 48, Almere&#10;Waagstraat 49, Lelystad"></textarea>
+      <button class="btn-bulk" id="btnBulk" onclick="searchBulk()">🔍 Alle adressen opzoeken</button>
+    </div>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-label" id="progressLabel">Bezig...</div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+    </div>
+
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+
+  <div class="single-result" id="singleResult">
+    <div class="addr-label" id="resultAdres"></div>
+    <div class="postcode" id="resultPostcode"></div>
+    <div class="woz-grid" id="wozGrid"></div>
+  </div>
+
+  <div class="results-section" id="resultsSection">
+    <div class="results-header">
+      <h3>Resultaten <span id="resultCount"></span></h3>
+      <div class="export-btns">
+        <button class="btn-export csv" onclick="exportCSV()">⬇ CSV</button>
+        <button class="btn-export excel" onclick="exportExcel()">⬇ Excel</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr id="tableHead"></tr></thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Data via <a href="https://api.kadaster.nl" target="_blank">Kadaster API</a> &amp;
+  <a href="https://api.pdok.nl" target="_blank">PDOK Locatieserver</a> &nbsp;·&nbsp; Bron: WOZ-waardeloket
+</footer>
+
+<script>
+const ALL_YEARS = [2020, 2021, 2022, 2023, 2024, 2025];
+let selectedYears = new Set([2023, 2024, 2025]);
+let allResults = [];
+
+// Build year pills
+function buildYearPills() {
+  const wrap = document.getElementById('yearPills');
+  wrap.innerHTML = '';
+  for (const yr of ALL_YEARS) {
+    const lbl = document.createElement('label');
+    lbl.className = 'year-pill' + (selectedYears.has(yr) ? ' active' : '');
+    lbl.innerHTML = `<input type="checkbox" value="${yr}" ${selectedYears.has(yr) ? 'checked' : ''}>${yr}`;
+    lbl.querySelector('input').addEventListener('change', e => {
+      if (e.target.checked) selectedYears.add(yr); else selectedYears.delete(yr);
+      lbl.classList.toggle('active', e.target.checked);
+    });
+    wrap.appendChild(lbl);
+  }
+}
+buildYearPills();
+
+// Helpers
+function fmt(v) { return v ? '€\u00A0' + v.toLocaleString('nl-NL') : '—'; }
+function pct(a, b) { if (!a || !b) return null; return ((b - a) / a * 100).toFixed(1); }
+function badge(p) {
+  if (p === null) return '';
+  const n = parseFloat(p);
+  if (n > 0) return `<span class="up">▲ ${p}%</span>`;
+  if (n < 0) return `<span class="dn">▼ ${Math.abs(p)}%</span>`;
+  return '<span>0%</span>';
+}
+function showError(m) { const e = document.getElementById('errorMsg'); e.textContent = m; e.classList.add('visible'); }
+function clearError() { document.getElementById('errorMsg').classList.remove('visible'); }
+
+// API
+async function getWOZ(adres) {
+  const s = await fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/suggest?q=${encodeURIComponent(adres)}&rows=1&fq=type:adres`);
+  const sd = await s.json();
+  const id = sd.response?.docs?.[0]?.id;
+  if (!id) throw new Error('Adres niet gevonden');
+
+  const l = await fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/lookup?id=${id}`);
+  const ld = await l.json();
+  const numId = ld.response?.docs?.[0]?.nummeraanduiding_id;
+  if (!numId) throw new Error('Geen nummeraanduiding gevonden');
+
+  const w = await fetch(`https://api.kadaster.nl/lvwoz/wozwaardeloket-api/v1/wozwaarde/nummeraanduiding/${numId}`);
+  const wd = await w.json();
+
+  const waarden = {};
+  for (const x of (wd.wozWaarden || [])) waarden[x.peildatum?.substring(0, 4)] = x.vastgesteldeWaarde;
+  return { adres, weergavenaam: sd.response.docs[0].weergavenaam, waarden };
+}
+
+// Single search
+async function searchSingle() {
+  const input = document.getElementById('singleInput').value.trim();
+  if (!input) return;
+  if (!selectedYears.size) { showError('Selecteer minimaal één jaar.'); return; }
+  clearError();
+  document.getElementById('singleResult').classList.remove('visible');
+  document.getElementById('resultsSection').classList.remove('visible');
+
+  const btn = document.getElementById('btnSingle');
+  document.getElementById('btnSingleText').textContent = 'Bezig…';
+  document.getElementById('spinner').style.display = 'inline-block';
+  btn.disabled = true;
+
+  try {
+    const r = await getWOZ(input);
+    const years = [...selectedYears].sort();
+    const parts = r.weergavenaam.split(',');
+    document.getElementById('resultAdres').textContent = parts[0];
+    document.getElementById('resultPostcode').textContent = parts.slice(1).join(',').trim();
+
+    const grid = document.getElementById('wozGrid');
+    grid.innerHTML = '';
+    years.forEach((yr, i) => {
+      const val = r.waarden[String(yr)];
+      const prev = i > 0 ? r.waarden[String(years[i-1])] : null;
+      const p = pct(prev, val);
+      const isLast = i === years.length - 1;
+      const card = document.createElement('div');
+      card.className = 'woz-card' + (isLast ? ' hl' : '');
+      card.innerHTML = `
+        <div class="yr">WOZ ${yr}</div>
+        <div class="val">${fmt(val)}</div>
+        <div class="chg">${p !== null ? `t.o.v. ${years[i-1]}: ${badge(p)}` : `01-01-${yr}`}</div>`;
+      grid.appendChild(card);
+    });
+    document.getElementById('singleResult').classList.add('visible');
+  } catch(e) {
+    showError('⚠ ' + (e.message || 'Onbekende fout'));
+  } finally {
+    btn.disabled = false;
+    document.getElementById('btnSingleText').textContent = 'Opzoeken';
+    document.getElementById('spinner').style.display = 'none';
+  }
+}
+
+// Bulk search
+async function searchBulk() {
+  const lines = document.getElementById('bulkInput').value.trim().split('\n').map(l => l.trim()).filter(Boolean);
+  if (!lines.length) return;
+  if (!selectedYears.size) { showError('Selecteer minimaal één jaar.'); return; }
+  clearError();
+  document.getElementById('singleResult').classList.remove('visible');
+  document.getElementById('resultsSection').classList.remove('visible');
+
+  const btn = document.getElementById('btnBulk');
+  btn.disabled = true; btn.textContent = 'Bezig…';
+  const pw = document.getElementById('progressWrap');
+  const pl = document.getElementById('progressLabel');
+  const pf = document.getElementById('progressFill');
+  pw.classList.add('visible');
+
+  allResults = [];
+  for (let i = 0; i < lines.length; i++) {
+    pl.textContent = `Ophalen ${i + 1} van ${lines.length}: ${lines[i]}`;
+    pf.style.width = ((i / lines.length) * 100) + '%';
+    try { allResults.push(await getWOZ(lines[i])); }
+    catch(e) { allResults.push({ adres: lines[i], error: e.message }); }
+    await new Promise(r => setTimeout(r, 150));
+  }
+  pf.style.width = '100%';
+  pl.textContent = `Klaar! ${allResults.length} adressen opgehaald.`;
+  setTimeout(() => pw.classList.remove('visible'), 2500);
+  renderTable();
+  btn.disabled = false; btn.textContent = '🔍 Alle adressen opzoeken';
+}
+
+function getYears() { return [...selectedYears].sort(); }
+
+function renderTable() {
+  const years = getYears();
+  document.getElementById('resultCount').textContent = `(${allResults.length})`;
+
+  const last2 = years.slice(-2);
+  document.getElementById('tableHead').innerHTML =
+    `<th>Adres</th>` + years.map(y => `<th>WOZ ${y}</th>`).join('') +
+    (years.length >= 2 ? `<th>Mutatie ${last2[0]}→${last2[1]}</th>` : '');
+
+  const tbody = document.getElementById('resultsBody');
+  tbody.innerHTML = '';
+  for (const r of allResults) {
+    const tr = document.createElement('tr');
+    if (r.error) {
+      tr.innerHTML = `<td>${r.adres}</td><td colspan="${years.length + 1}" style="text-align:left;color:#C0392B">⚠ ${r.error}</td>`;
+    } else {
+      const p = years.length >= 2 ? pct(r.waarden[String(last2[0])], r.waarden[String(last2[1])]) : null;
+      tr.innerHTML = `<td>${r.weergavenaam || r.adres}</td>` +
+        years.map(y => `<td>${fmt(r.waarden[String(y)])}</td>`).join('') +
+        (years.length >= 2 ? `<td>${p !== null ? badge(p) : '—'}</td>` : '');
+    }
+    tbody.appendChild(tr);
+  }
+  document.getElementById('resultsSection').classList.add('visible');
+}
+
+function exportCSV() {
+  const years = getYears();
+  const last2 = years.slice(-2);
+  const hdr = ['Adres', ...years.map(y => `WOZ ${y}`), years.length >= 2 ? `Mutatie ${last2[0]}-${last2[1]}` : null].filter(Boolean);
+  const rows = [hdr];
+  for (const r of allResults) {
+    if (r.error) { rows.push([r.adres, 'Fout: ' + r.error]); continue; }
+    const p = years.length >= 2 ? pct(r.waarden[String(last2[0])], r.waarden[String(last2[1])]) : null;
+    rows.push([r.weergavenaam || r.adres, ...years.map(y => r.waarden[String(y)] || ''), p !== null ? p + '%' : '']);
+  }
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'woz_waarden.csv'; a.click();
+}
+
+function exportExcel() {
+  const years = getYears();
+  const last2 = years.slice(-2);
+  const hdr = ['Adres', ...years.map(y => `WOZ ${y}`), years.length >= 2 ? `Mutatie ${last2[0]}-${last2[1]}` : null].filter(Boolean);
+  const wsData = [hdr];
+  for (const r of allResults) {
+    if (r.error) { wsData.push([r.adres, 'Fout: ' + r.error]); continue; }
+    const p = years.length >= 2 ? pct(r.waarden[String(last2[0])], r.waarden[String(last2[1])]) : null;
+    wsData.push([r.weergavenaam || r.adres, ...years.map(y => r.waarden[String(y)] || null), p !== null ? parseFloat(p) / 100 : null]);
+  }
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{ wch: 42 }, ...years.map(() => ({ wch: 16 })), { wch: 16 }];
+
+  // Formatting
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let R = 1; R <= range.e.r; R++) {
+    for (let C = 1; C <= years.length; C++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+      if (cell && cell.t === 'n') cell.z = '€ #,##0';
+    }
+    if (years.length >= 2) {
+      const cell = ws[XLSX.utils.encode_cell({ r: R, c: years.length + 1 })];
+      if (cell && cell.t === 'n') cell.z = '0.0%';
+    }
+  }
+
+  XLSX.utils.book_append_sheet(wb, ws, 'WOZ Waarden');
+  XLSX.writeFile(wb, 'woz_waarden.xlsx');
+}
+
+function toggleBulk() {
+  document.getElementById('bulkArea').classList.toggle('visible', document.getElementById('bulkToggle').checked);
+  document.getElementById('singleResult').classList.remove('visible');
+  document.getElementById('resultsSection').classList.remove('visible');
+}
+document.getElementById('singleInput').addEventListener('keydown', e => { if (e.key === 'Enter') searchSingle(); });
+</script>
+</body>
+</html>
